@@ -25,13 +25,13 @@ class Dataset(object):
             self.train_data_path,
             delimiter=",",
             skiprows=1
-        )[:, 1:]
+        )[:, 1:] / 255
 
         self.test_data = np.loadtxt(
             self.test_data_path,
             delimiter=",",
             skiprows=1
-        )[:, 1:]
+        )[:, 1:] / 255
 
 
 def get_dataset():
