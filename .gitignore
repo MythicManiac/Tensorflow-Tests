@@ -1,5 +1,6 @@
 # Custom
 **events.out.tfevents.**
+experiments/models/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
