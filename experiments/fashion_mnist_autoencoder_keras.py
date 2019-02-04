@@ -6,6 +6,9 @@ from keras.models import Model, load_model
 import matplotlib.pyplot as plt
 import numpy as np
 
+from PIL import Image, ImageTk
+import PySimpleGUI as sg
+
 import os
 import random
 
@@ -19,6 +22,7 @@ class AutoEncoder(object):
 
     def __init__(self):
         self.build()
+        self._decoder = None
 
     def build(self):
         input_layer = Input(shape=(784,), name="in")
@@ -39,6 +43,24 @@ class AutoEncoder(object):
         self.model.summary()
         self.model.compile(optimizer="adam", loss="mse")
 
+    @property
+    def decoder(self):
+        if self._decoder:
+            return self._decoder
+
+        # https://github.com/keras-team/keras/issues/4811
+        inp = Input(shape=(10,), name="in")
+        dec1 = self.model.get_layer("dec1")
+        dec2 = self.model.get_layer("dec2")
+        dec3 = self.model.get_layer("dec3")
+        out = self.model.get_layer("out")
+        self._decoder = Model(
+            inp,
+            out(dec3(dec2(dec1(inp))))
+        )
+        self._decoder.summary()
+        return self._decoder
+
     def load(self):
         if os.path.exists(SAVE_LOCATION):
             self.model = load_model(SAVE_LOCATION)
@@ -49,7 +71,7 @@ class AutoEncoder(object):
         self.model.fit(
             inputs,
             inputs,
-            epochs=20,
+            epochs=50,
             batch_size=512,
             validation_data=(inputs, inputs),
             callbacks=[early_stoppping]
@@ -64,19 +86,7 @@ class AutoEncoder(object):
         plt.show()
 
     def decode(self, inputs):
-        # https://github.com/keras-team/keras/issues/4811
-        inp = Input(shape=(10,), name="in")
-        dec1 = self.model.get_layer("dec1")
-        dec2 = self.model.get_layer("dec2")
-        dec3 = self.model.get_layer("dec3")
-        out = self.model.get_layer("out")
-        decoder = Model(
-            inp,
-            out(dec3(dec2(dec1(inp))))
-        )
-        decoder.summary()
-        print(inputs.shape)
-        return decoder.predict(inputs)
+        return self.decoder.predict(inputs)
 
     def predict_output(self, inputs):
         self.plot_data(inputs[:5])
@@ -84,16 +94,69 @@ class AutoEncoder(object):
         self.plot_data(predictions[:5])
 
 
+class DecoderGUI(object):
+
+    def __init__(self, decoder):
+        self.decoder = decoder
+        slider_range = (-1000, 1000)
+        sliders = [
+            [sg.Slider(range=slider_range, default_value=0, size=(12, 8), orientation="horizontal", key=f"input_{i}")]
+            for i in range(10)
+        ]
+        self.layout = [
+            [sg.Frame("Values", sliders), sg.Frame("Output", [[sg.Canvas(size=(640, 640), key="canvas")]])],
+        ]
+        self.window = sg.Window("Fashion MNIST Decoder").Layout(self.layout).Finalize()
+        self.canvas = self.window.FindElement("canvas").TKCanvas
+        self.image_canvas_id = self.canvas.create_image(640 / 2, 640 / 2)
+        self.last_inputs = None
+        # self.update_image_from_data(np.linspace(0, 1, 28 * 28) * 255)
+
+    def update_image_from_data(self, data):
+        image_data = np.uint8(np.reshape(data, (28, 28)))
+        image = Image.fromarray(image_data, "L").resize((640, 640))
+        self.image = ImageTk.PhotoImage(image)
+        self.canvas.itemconfig(self.image_canvas_id, image=self.image)
+
+    def update_picture(self, inputs):
+        self.last_inputs = inputs
+        output = self.decoder.decode(inputs)
+        print(inputs)
+        output = output[0]
+        output = np.interp(output, (output.min(), output.max()), (0, 255))
+        self.update_image_from_data(output)
+
+    def update_values(self, values):
+        inputs = []
+        for i in range(10):
+            key = f"input_{i}"
+            inputs.append(values[key] / 1000.0)
+        inputs = np.array([inputs])
+        if not (inputs == self.last_inputs).all():
+            self.update_picture(inputs)
+
+    def event_loop(self):
+        while True:
+            event, values = self.window.Read(timeout=100)  # Timeout in ms
+            if values is None:
+                break
+            else:
+                self.update_values(values)
+
+
 def main():
-    data = get_dataset()
     model = AutoEncoder()
     model.load()
-    model.train(data.train_data)
+    gui = DecoderGUI(model)
+    gui.event_loop()
+    # data = get_dataset()
+    # model = AutoEncoder()
+    # model.train(data.train_data)
     # model.predict_output(data.test_data)
-    while True:
-        inputs = np.array([[random.random() for _ in range(10)] for _ in range(5)])
-        generated = model.decode(inputs)
-        model.plot_data(generated)
+    # while True:
+    #     inputs = np.array([[random.random() for _ in range(10)] for _ in range(1)])
+    #     generated = model.decode(inputs)
+    #     model.plot_data(generated)
 
 
 if __name__ == "__main__":
