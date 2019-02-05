@@ -1,5 +1,4 @@
 import os
-import wave
 
 import numpy as np
 
@@ -7,8 +6,6 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Dense, Input
 from keras.models import Model, load_model
 from keras import backend
-
-from matplotlib import pyplot
 
 from data.ncs_music.dataset import get_dataset
 
@@ -90,7 +87,7 @@ class AutoEncoder(object):
             inputs,
             inputs,
             epochs=200,
-            batch_size=256,
+            batch_size=1024,
             validation_data=(validation, validation),
             callbacks=[early_stoppping, model_checkpoint]
         )

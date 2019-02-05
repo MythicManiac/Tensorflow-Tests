@@ -93,7 +93,7 @@ class Dataset(object):
                 data.append(full_data[pos: pos + block_size])
                 pos += block_interval
 
-        data = np.random.shuffle(data)
+        np.random.shuffle(data)
 
         cutoff = int(len(data) * 0.8)
         self.train_data = np.array(data[:cutoff])
