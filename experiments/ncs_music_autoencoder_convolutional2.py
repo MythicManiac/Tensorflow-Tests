@@ -2,55 +2,55 @@ import os
 import wave
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Dense, Input, InputLayer, Conv1D, MaxPool1D, UpSampling1D
+from keras.layers import Dense, Input, InputLayer, Conv1D, MaxPool1D, UpSampling1D, BatchNormalization, Activation
 from keras.models import Model, Sequential, load_model
 from keras import backend
 
 from data.ncs_music.dataset import get_dataset
 
 
-SAVE_LOCATION = "models/ncs_music_autoencoder_convolutional.h5"
+CONV_ID = 2
+SAVE_LOCATION = f"models/ncs_music_autoencoder_convolutional_{CONV_ID}.h5"
+INPUT_COUNT = 400
 
 
 class AutoEncoder(object):
 
     def __init__(self):
-        self.n_inputs = 2000  # Framerate of 4000 frames per second, 1 second of data
-        self.n_features = 500
+        self.n_inputs = INPUT_COUNT  # Framerate of 4000 frames per second, 1 second of data
+        self.n_features = 100
         self._decoder = None
         self.build()
 
     def build(self):
         model = Sequential()
 
-        model.add(InputLayer(input_shape=(self.n_inputs, 1), name="in"))
+        model.add(InputLayer(input_shape=(self.n_inputs, ), name="in"))
 
         encoder = Sequential(name="encoder")
-        encoder.add(Conv1D(512, 3, activation="relu", padding="same"))
-        encoder.add(MaxPool1D(2))
-        encoder.add(Conv1D(256, 3, activation="relu", padding="same"))
-        encoder.add(MaxPool1D(2))
-        encoder.add(Conv1D(128, 3, activation="relu", padding="same"))
-        encoder.add(MaxPool1D(2))
-        encoder.add(Conv1D(64, 3, activation="relu", padding="same"))
+        encoder.add(Dense(800, activation="relu"))
+        encoder.add(BatchNormalization())
+        encoder.add(Dense(400, activation="relu"))
+        encoder.add(BatchNormalization())
+        encoder.add(Dense(200, activation="relu"))
+        encoder.add(BatchNormalization())
         model.add(encoder)
 
-        model.add(MaxPool1D(2, name="latent"))
+        model.add(Dense(self.n_features, activation="sigmoid", name="latent"))
 
         decoder = Sequential(name="decoder")
-        decoder.add(Conv1D(64, 2, activation="relu", padding="same"))
-        decoder.add(UpSampling1D(2))
-        decoder.add(Conv1D(128, 2, activation="relu", padding="same"))
-        decoder.add(UpSampling1D(2))
-        decoder.add(Conv1D(256, 2, activation="relu", padding="same"))
-        decoder.add(UpSampling1D(2))
-        decoder.add(Conv1D(512, 2, activation="relu", padding="same"))
-        decoder.add(UpSampling1D(2))
+        decoder.add(Dense(200, activation="relu"))
+        decoder.add(BatchNormalization())
+        decoder.add(Dense(400, activation="relu"))
+        decoder.add(BatchNormalization())
+        decoder.add(Dense(800, activation="relu"))
+        decoder.add(BatchNormalization())
         model.add(decoder)
 
-        model.add(Conv1D(1, 2, name="out", padding="same"))
+        model.add(Dense(self.n_inputs, name="out"))
 
         model.summary()
         model.compile(optimizer="adam", loss="mse")
@@ -79,13 +79,13 @@ class AutoEncoder(object):
             print("Loaded a model")
 
     def train(self, inputs, validation):
-        early_stoppping = EarlyStopping(
-            monitor="val_loss",
-            min_delta=0,
-            patience=10,
-            verbose=1,
-            mode="auto"
-        )
+        # early_stoppping = EarlyStopping(
+        #     monitor="val_loss",
+        #     min_delta=0,
+        #     patience=10,
+        #     verbose=1,
+        #     mode="auto"
+        # )
         model_checkpoint = ModelCheckpoint(
             SAVE_LOCATION,
             monitor="val_loss",
@@ -98,9 +98,9 @@ class AutoEncoder(object):
         self.model.fit(
             inputs,
             inputs,
-            epochs=500,
-            batch_size=128,
-            validation_data=(validation, validation),
+            epochs=100,
+            batch_size=512,
+            validation_data=(inputs, inputs),
             # callbacks=[early_stoppping, model_checkpoint]
             callbacks=[model_checkpoint]
         )
@@ -117,17 +117,28 @@ def main():
     backend.set_floatx("float16")
     backend.set_epsilon(1e-4)
 
-    data = get_dataset(block_interval=1000, block_size=2000, file_count=10)
-    # train_data = data.train_data.reshape(len(data.train_data), 2000, 1)
-    # test_data = data.test_data.reshape(len(data.test_data), 2000, 1)
+    data = get_dataset(block_interval=int(INPUT_COUNT / 4), block_size=INPUT_COUNT, file_count=10)
+    # train_data = data.train_data.reshape(len(data.train_data), INPUT_COUNT, 1)
+    # test_data = data.test_data.reshape(len(data.test_data), INPUT_COUNT, 1)
+    train_data = data.train_data
+    test_data = data.test_data
+
+    # plt.plot(train_data.flatten())
+    # plt.show()
+
+    # plot_data = np.bincount((train_data.flatten() * 255).astype(int))
+
+    # plt.plot(plot_data)
+    # plt.show()
+
+    # print(plot_data.shape)
 
     model = AutoEncoder()
     model.load()
-    # model.train(train_data, test_data)
-    for i in range(10):
-        inp = data.files[i].reshape(len(data.files[i]), 2000, 1)
-        output = model.predict_output(inp).reshape(len(data.files[i]), 2000)
-        data.write_wav(f"output-conv{i}.wav", output)
+    model.train(train_data, test_data)
+    for i in range(min(len(data.files), 10)):
+        output = model.predict_output(data.files[i])
+        data.write_wav(f"output-conv-{CONV_ID}-{i}.wav", output)
 
     # import random
     # inputs = np.array([[random.random() for _ in range(256)] for _ in range(10 * 60)])

@@ -17,7 +17,7 @@ class AutoEncoder(object):
 
     def __init__(self):
         self.n_inputs = 800
-        self.n_features = 256
+        self.n_features = 1600
         self._decoder = None
         self.build()
 
@@ -87,9 +87,9 @@ class AutoEncoder(object):
             inputs,
             inputs,
             epochs=200,
-            batch_size=1024,
+            batch_size=128,
             validation_data=(validation, validation),
-            callbacks=[early_stoppping, model_checkpoint]
+            callbacks=[model_checkpoint]
         )
         # self.model.save(SAVE_LOCATION)
 
@@ -102,10 +102,10 @@ class AutoEncoder(object):
 
 
 def main():
-    data = get_dataset(block_interval=200)
+    data = get_dataset(block_interval=200, block_size=800, file_count=107)
     model = AutoEncoder()
     model.load()
-    model.train(data.train_data, data.test_data)
+    # model.train(data.train_data, data.test_data)
     for i in range(10):
         output = model.predict_output(data.files[i])
         data.write_wav(f"output{i}.wav", output)

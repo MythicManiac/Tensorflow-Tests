@@ -20,7 +20,7 @@ class Dataset(object):
         ]
         return files
 
-    def read_wav(self, path, block_size, block_interval):
+    def read_wav(self, path, block_size):
         with wave.open(path, "rb") as f:
             nchannels, sampwidth, framerate, nframes, comptype, compname = f.getparams()
             frames = f.readframes(nframes)
@@ -69,7 +69,7 @@ class Dataset(object):
             f.setparams(params)
             f.writeframes(data)
 
-    def __init__(self, block_size=800, block_interval=400, file_count=None):
+    def __init__(self, block_size=800, block_interval=400, file_count=None, shuffle=True, output_size=1):
         files = self.get_all_files("processed")
         if file_count is None:
             file_count = len(files)
@@ -80,31 +80,42 @@ class Dataset(object):
             wav_data = self.read_wav(
                 files[i],
                 block_size=block_size,
-                block_interval=block_interval
             )
             data.append(wav_data)
         self.files = np.array(data)
 
         data = []
+        outputs = []
         for file in self.files:
             full_data = file.flatten()
             pos = 0
-            while pos + block_size < len(full_data):
+            while pos + block_size < len(full_data) and pos + block_size + output_size < len(full_data):
                 data.append(full_data[pos: pos + block_size])
+                outputs.append(full_data[pos + block_size:pos + block_size + output_size])
                 pos += block_interval
 
-        np.random.shuffle(data)
+        # def unison_shuffled_copies(a, b):
+        #     assert len(a) == len(b)
+        #     p = np.random.permutation(len(a))
+        #     return a[p], b[p]
+
+        # if shuffle:
+        #     data, outputs = unison_shuffled_copies(data, outputs)
 
         cutoff = int(len(data) * 0.8)
         self.train_data = np.array(data[:cutoff])
+        self.train_out = np.array(outputs[:cutoff])
         self.test_data = np.array(data[cutoff:])
+        self.test_out = np.array(outputs[cutoff:])
         print(f"Train data shape: {self.train_data.shape}")
         print(f"Test data shape: {self.test_data.shape}")
 
 
-def get_dataset(file_count=None, block_size=800, block_interval=400):
+def get_dataset(file_count=None, block_size=800, block_interval=400, shuffle=True, output_size=1):
     return Dataset(
         file_count=file_count,
         block_size=block_size,
         block_interval=block_interval,
+        shuffle=shuffle,
+        output_size=output_size,
     )
