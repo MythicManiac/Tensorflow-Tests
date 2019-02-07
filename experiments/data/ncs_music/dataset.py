@@ -102,6 +102,10 @@ class Dataset(object):
         # if shuffle:
         #     data, outputs = unison_shuffled_copies(data, outputs)
 
+        if shuffle:
+            outputs = []
+            np.random.shuffle(data)
+
         cutoff = int(len(data) * 0.8)
         self.train_data = np.array(data[:cutoff])
         self.train_out = np.array(outputs[:cutoff])
