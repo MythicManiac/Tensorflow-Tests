@@ -69,7 +69,11 @@ class Dataset(object):
             f.setparams(params)
             f.writeframes(data)
 
-    def __init__(self, block_size=800, block_interval=400, file_count=None, shuffle=True, output_size=1):
+    def __init__(self):
+        pass
+
+    def load(self, block_size=800, block_interval=400, file_count=None,
+             shuffle=True, output_size=1, just_files=False):
         files = self.get_all_files("highfreq")
         if file_count is None:
             file_count = len(files)
@@ -84,6 +88,10 @@ class Dataset(object):
             data.append(wav_data)
         self.files = np.array(data)
 
+        if just_files:
+            print(f"Loaded {len(self.files)} files")
+            return
+
         data = []
         outputs = []
         for file in self.files:
@@ -91,7 +99,8 @@ class Dataset(object):
             pos = 0
             while pos + block_size < len(full_data) and pos + block_size + output_size < len(full_data):
                 data.append(full_data[pos: pos + block_size])
-                outputs.append(full_data[pos + block_size:pos + block_size + output_size])
+                if output_size:
+                    outputs.append(full_data[pos + block_size:pos + block_size + output_size])
                 pos += block_interval
 
         # def unison_shuffled_copies(a, b):
@@ -115,11 +124,14 @@ class Dataset(object):
         print(f"Test data shape: {self.test_data.shape}")
 
 
-def get_dataset(file_count=None, block_size=800, block_interval=400, shuffle=True, output_size=1):
-    return Dataset(
+def get_dataset(file_count=None, block_size=800, block_interval=400, shuffle=True, output_size=1, just_files=False):
+    dataset = Dataset()
+    dataset.load(
         file_count=file_count,
         block_size=block_size,
         block_interval=block_interval,
         shuffle=shuffle,
         output_size=output_size,
+        just_files=just_files,
     )
+    return dataset
