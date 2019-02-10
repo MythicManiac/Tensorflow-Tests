@@ -291,22 +291,22 @@ def main():
                 return self.figure.render(self.figure.figures[index])
 
         last_percentage = -1
-        plots = []
+        figures = []
 
         # (graph total duration / graph datapoint count) * (graph datapoint count / graph width)
-        figure_width = 60
-        figure_datapoints = 4096
-        frame_duration = (1 / figure_datapoints) * (figure_datapoints / figure_width)
+        figure_snapshot_rate = 40
+        tick_to_sample_ratio = 32.87890625
+        frame_duration = (figure_snapshot_rate * tick_to_sample_ratio) / 44100
         for i in range(128):
             column = i % 16
             row = int(i / 16)
-            plots.append(Figure(60, 60, row, column, frame_duration))
+            figures.append(Figure(60, 60, row, column, frame_duration))
 
         print(f"Rendering output: {output.shape}")
         for index, entry in enumerate(output):
-            should_snapshot = index % int(figure_datapoints / figure_width) == 0
+            should_snapshot = index % figure_snapshot_rate == 0
 
-            for plot_index, plot in enumerate(plots):
+            for plot_index, plot in enumerate(figures):
                 plot.push((entry[plot_index] - min_val) / max_val_normalized)
 
                 if should_snapshot:
@@ -317,13 +317,19 @@ def main():
                 last_percentage = percentage
                 print(f"Capturing figures: {percentage}%...")
 
-        print(f"{len(plots[0].figures)} figure frames rendered")
-        clips = [FigureClip(figure) for figure in plots]
+        print(f"{len(figures[0].figures)} figure frames rendered")
+        clips = [FigureClip(figure) for figure in figures]
 
         audio_filename = f"vis/output.wav"
         output = model.predict_output(inp).flatten()
         data.write_wav(audio_filename, output)
+
+        del model
+        backend.clear_session()
+
         audio = AudioFileClip(audio_filename)
+        audio = audio.set_start(0)
+        audio = audio.set_duration(min(audio.duration, frame_duration * len(figures[0].figures)))
 
         result = CompositeVideoClip(clips, size=(16 * 66 + 12, 8 * 66 + 12))
         result = result.set_audio(audio)
