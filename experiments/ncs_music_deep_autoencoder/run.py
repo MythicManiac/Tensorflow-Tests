@@ -18,10 +18,30 @@ from keras.models import Sequential
 from keras.backend.tensorflow_backend import set_session
 
 
-VALIDATION_DATA_PATH = "data-validation.npy"
-TRAINING_DATA_PATH = "data-training.npy"
-FILES_DATA_PATH = "data-files.npy"
-WEIGHTS_PATH = "weights.h5"
+def get_input_path(name):
+    valohai_path = os.path.join("/valohai/inputs/", name)
+    if os.path.isfile(valohai_path):
+        return os.path.abspath(valohai_path)
+    basepath = os.path.dirname(os.path.abspath(__file__))
+    result = os.path.abspath(os.path.join(basepath, name))
+    return result
+
+
+def get_output_path(name):
+    valohai_output = "/valohai/outputs/"
+    if os.path.isdir(valohai_output):
+        valohai_path = os.path.join("/valohai/outputs/", name)
+        return os.path.abspath(valohai_path)
+    basepath = os.path.dirname(os.path.abspath(__file__))
+    result = os.path.abspath(os.path.join(basepath, name))
+    return result
+
+
+VALIDATION_DATA_PATH = get_input_path("data-validation.npy")
+TRAINING_DATA_PATH = get_input_path("data-training.npy")
+FILES_DATA_PATH = get_input_path("data-files.npy")
+WEIGHTS_LOAD_PATH = get_input_path("weights.h5")
+WEIGHTS_SAVE_PATH = get_output_path("weights.h5")
 INPUT_COUNT = 729
 
 
@@ -78,13 +98,13 @@ class ExperimentalModel(object):
         self.load()
 
     def load(self):
-        if os.path.exists(WEIGHTS_PATH):
-            self.model.load_weights(WEIGHTS_PATH)
+        if os.path.exists(WEIGHTS_LOAD_PATH):
+            self.model.load_weights(WEIGHTS_LOAD_PATH)
             print("Loaded a model")
 
     def train(self, in_x, in_y, val_x, val_y):
         model_checkpoint = ModelCheckpoint(
-            WEIGHTS_PATH,
+            WEIGHTS_LOAD_PATH,
             monitor="val_loss",
             verbose=0,
             save_best_only=True,
@@ -112,7 +132,7 @@ class ExperimentalModel(object):
         self.model.fit(
             in_x,
             in_y,
-            epochs=1000,
+            epochs=10,
             batch_size=2048,
             validation_data=(val_x, val_y),
             callbacks=[model_checkpoint, reduce_lr, early_stoppping],

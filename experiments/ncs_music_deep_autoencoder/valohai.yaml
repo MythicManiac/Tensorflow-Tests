@@ -1,14 +1,16 @@
 ---
 
 - step:
-    name: Execute python run.py
-    image: ufoym/deepo:all-py36
-    command: python run.py
-    #inputs:
-    #  - name: example-input
-    #    default: https://example.com/
-    #parameters:
-    # - name: example
-    #   description: Example parameter
-    #   type: integer
-    #   default: 300
+  name: train
+  image: ufoym/deepo:all-py36
+  command: python run.py --train
+  inputs:
+    - name: data-training.npy
+      default: datum://0168d963-064f-9da0-4a3a-1342663c7d05
+    - name: data-validation.npy
+      default: datum://0168d963-064f-9da0-4a3a-1342663c7d05
+  #parameters:
+  # - name: example
+  #   description: Example parameter
+  #   type: integer
+  #   default: 300
