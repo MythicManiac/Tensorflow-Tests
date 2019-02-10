@@ -26,10 +26,12 @@ from keras import backend
 from data.ncs_music.highfreq_dataset import get_dataset
 
 
-MODEL_ID = 1
+MODEL_ID = 3
 NAME = "autoencoder_deep"
 SAVE_LOCATION = f"models/ncs_music_autoencoder_deep_{MODEL_ID}.h5"
-INPUT_COUNT = 16384
+# INPUT_COUNT = 16384
+# INPUT_COUNT = 6561
+INPUT_COUNT = 729
 OUTPUT_COUNT = INPUT_COUNT
 
 
@@ -47,67 +49,67 @@ class ExperimentalModel(object):
         model.add(InputLayer(input_shape=(self.n_inputs, 1), name="in"))
 
         # encoder = Sequential(name="encoder")
-        model.add(Conv1D(16, 3, padding="same", use_bias=False))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
         model.add(Conv1D(32, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
-        model.add(Conv1D(32, 3, padding="same", use_bias=False))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
+        model.add(MaxPool1D(3))
         model.add(Conv1D(64, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
+        model.add(MaxPool1D(3))
+        model.add(Conv1D(64, 3, padding="same", use_bias=False))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(MaxPool1D(3))
         model.add(Conv1D(128, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
+        model.add(MaxPool1D(3))
         model.add(Conv1D(128, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(MaxPool1D(2))
+        model.add(MaxPool1D(3))
         model.add(Conv1D(256, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-
-        model.add(MaxPool1D(2, name="latent"))
+        model.add(MaxPool1D(3, name="encoder_out"))
         # model.add(encoder)
+
+        # model.add(Conv1D(2048, 3, padding="same", use_bias=False))
+        # model.add(BatchNormalization())
+        # model.add(Activation("relu"))
+        # model.add(MaxPool1D(256))
+        # model.add(Conv1D(2048, 3, padding="same", use_bias=False))
+        # model.add(BatchNormalization())
+        # model.add(Activation("relu"))
+        # model.add(UpSampling1D(256))
 
         # decoder = Sequential(name="decoder")
         model.add(Conv1D(256, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
+        model.add(UpSampling1D(3))
         model.add(Conv1D(128, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
+        model.add(UpSampling1D(3))
         model.add(Conv1D(128, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
-        model.add(Conv1D(63, 3, padding="same", use_bias=False))  # Change to 64
+        model.add(UpSampling1D(3))
+        model.add(Conv1D(64, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
+        model.add(UpSampling1D(3))
+        model.add(Conv1D(64, 3, padding="same", use_bias=False))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(UpSampling1D(3))
         model.add(Conv1D(32, 3, padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
-        model.add(Conv1D(32, 3, padding="same", use_bias=False))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
-        model.add(Conv1D(16, 3, padding="same", use_bias=False))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-        model.add(UpSampling1D(2))
-        model.add(Conv1D(1, 3, name="out", padding="same", use_bias=False))
+        model.add(UpSampling1D(3))
+        model.add(Conv1D(1, 3, name="decoder_out", padding="same", use_bias=False))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         # model.add(decoder)
@@ -170,7 +172,7 @@ def main():
     # backend.set_epsilon(1e-4)
 
     data = get_dataset(
-        block_interval=10000,
+        block_interval=max(min(INPUT_COUNT, 10000), 16),
         block_size=INPUT_COUNT,
         file_count=30,
         output_size=0,
