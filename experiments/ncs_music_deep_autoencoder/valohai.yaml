@@ -1,0 +1,14 @@
+---
+
+- step:
+    name: Execute python run.py
+    image: ufoym/deepo:all-py36
+    command: python run.py
+    #inputs:
+    #  - name: example-input
+    #    default: https://example.com/
+    #parameters:
+    # - name: example
+    #   description: Example parameter
+    #   type: integer
+    #   default: 300

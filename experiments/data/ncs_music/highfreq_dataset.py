@@ -47,8 +47,8 @@ class Dataset(object):
         # print(f"Comp name: {compname}")
         # print(f"Data count: {len(frames)}")
 
-        # Normalize
-        frames = np.array(np.split(np.array(list(frames)), len(frames) / block_size)) / 255.0
+        # Downscale to 0-1 range
+        frames = (np.array(np.split(np.array(list(frames)), len(frames) / block_size)) / 255.0).astype(np.float16)
 
         return frames
 
@@ -80,7 +80,7 @@ class Dataset(object):
         file_count = min(len(files), file_count)
         data = []
         for i in range(file_count):
-            print(f"Processing file {i + 1} / {file_count}")
+            print(f"Loading file {i + 1} / {file_count}")
             wav_data = self.read_wav(
                 files[i],
                 block_size=block_size,
@@ -94,7 +94,8 @@ class Dataset(object):
 
         data = []
         outputs = []
-        for file in self.files:
+        for index, file in enumerate(self.files):
+            print(f"Processing file {index + 1} / {file_count}")
             full_data = file.flatten()
             pos = 0
             while pos + block_size < len(full_data) and pos + block_size + output_size < len(full_data):

@@ -188,7 +188,7 @@ def main():
     data = get_dataset(
         block_interval=10000,
         block_size=INPUT_COUNT,
-        file_count=1,
+        file_count=30,
         output_size=0,
         shuffle=True,
     )
@@ -222,6 +222,17 @@ def main():
             output = model.predict_output(inp).flatten()
             data.write_wav(f"output-{NAME}-{MODEL_ID}-{i}.wav", output)
             print(f"output-{NAME}-{MODEL_ID}-{i}.wav created")
+
+    if "--convert" in sys.argv:
+        file_data = get_dataset(
+            block_interval=INPUT_COUNT,
+            block_size=INPUT_COUNT,
+            file_count=107,
+            output_size=0,
+            shuffle=False,
+            just_files=True,
+        )
+        inp = data.files.reshape()
 
     if "--vis" in sys.argv:
         os.environ["FFMPEG_BINARY"] = "ffmpeg"
@@ -295,7 +306,7 @@ def main():
 
         # (graph total duration / graph datapoint count) * (graph datapoint count / graph width)
         figure_snapshot_rate = 40
-        tick_to_sample_ratio = 32.87890625
+        tick_to_sample_ratio = 32.87890625  # This is still off sync with the audio, 2:53 becomes 2:58 for some reason
         frame_duration = (figure_snapshot_rate * tick_to_sample_ratio) / 44100
         for i in range(128):
             column = i % 16
