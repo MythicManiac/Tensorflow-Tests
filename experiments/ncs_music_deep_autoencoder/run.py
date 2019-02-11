@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 import numpy as np
 
@@ -19,21 +20,28 @@ from keras.backend.tensorflow_backend import set_session
 
 
 def get_input_path(name):
-    valohai_path = os.path.join("/valohai/inputs/", name)
+    valohai_input_name = name.split(".")[0]
+    valohai_path = os.path.abspath(os.path.join("/valohai/inputs/", valohai_input_name, name))
     if os.path.isfile(valohai_path):
+        print(f"Using input {valohai_path}")
         return os.path.abspath(valohai_path)
+    else:
+        print(f"No input found at {valohai_path}, using local")
     basepath = os.path.dirname(os.path.abspath(__file__))
     result = os.path.abspath(os.path.join(basepath, name))
     return result
 
 
 def get_output_path(name):
+    result = ""
     valohai_output = "/valohai/outputs/"
     if os.path.isdir(valohai_output):
         valohai_path = os.path.join("/valohai/outputs/", name)
-        return os.path.abspath(valohai_path)
-    basepath = os.path.dirname(os.path.abspath(__file__))
-    result = os.path.abspath(os.path.join(basepath, name))
+        result = os.path.abspath(valohai_path)
+    else:
+        basepath = os.path.dirname(os.path.abspath(__file__))
+        result = os.path.abspath(os.path.join(basepath, name))
+    print(f"Using output path {result}")
     return result
 
 
@@ -102,9 +110,9 @@ class ExperimentalModel(object):
             self.model.load_weights(WEIGHTS_LOAD_PATH)
             print("Loaded a model")
 
-    def train(self, in_x, in_y, val_x, val_y):
+    def train(self, in_x, in_y, val_x, val_y, epochs, batch_size, verbose):
         model_checkpoint = ModelCheckpoint(
-            WEIGHTS_LOAD_PATH,
+            WEIGHTS_SAVE_PATH,
             monitor="val_loss",
             verbose=0,
             save_best_only=True,
@@ -132,10 +140,11 @@ class ExperimentalModel(object):
         self.model.fit(
             in_x,
             in_y,
-            epochs=10,
-            batch_size=2048,
+            epochs=epochs,
+            batch_size=batch_size,
             validation_data=(val_x, val_y),
             callbacks=[model_checkpoint, reduce_lr, early_stoppping],
+            verbose=verbose,
         )
 
     def predict_output(self, inputs):
@@ -172,20 +181,30 @@ def plot():
     plt.show()
 
 
-def train():
+def train(batch_size, epochs, verbose, data_percentage):
+    print(f"Begun training with batch size {batch_size} across {epochs} epochs")
     training_data, validation_data = get_training_data()
+    training_cutoff = int(len(training_data) * data_percentage)
+    validation_cutoff = int(len(validation_data) * data_percentage)
     model = ExperimentalModel()
-    model.train(training_data, training_data, validation_data, validation_data)
+    model.train(
+        in_x=training_data[:training_cutoff],
+        in_y=training_data[:training_cutoff],
+        val_x=validation_data[:validation_cutoff],
+        val_y=validation_data[:validation_cutoff],
+        batch_size=batch_size,
+        epochs=epochs,
+        verbose=verbose,
+    )
 
 
-def output():
+def output(file_count):
     files = get_files_data()
     model = ExperimentalModel()
-    for i in range(min(len(files), 10)):
+    for i in range(min(len(files), file_count)):
         inp = files[i].reshape(len(files[i]), INPUT_COUNT, 1)
         output = model.predict_output(inp).flatten()
-        write_wav(f"output-{i}.wav", output)
-        print(f"output-{i}.wav created")
+        write_wav(get_output_path(f"output-{i}.wav"), output)
 
 
 def format_training_data():
@@ -227,20 +246,42 @@ def write_wav(path, data):
         f.writeframes(data)
 
 
-def main():
+def configure_tensorflow():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     session = tf.Session(config=config)
     set_session(session)
 
-    if "--format-data" in sys.argv:
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--format-data", action="store_true")
+
+    parser.add_argument("--train", action="store_true")
+    parser.add_argument("--batch-size", type=int, default=2048)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--verbose", type=int, default=1)
+    parser.add_argument("--data-percentage", type=float, default=1.0)
+
+    parser.add_argument("--plot", action="store_true")
+
+    parser.add_argument("--out", action="store_true")
+    parser.add_argument("--file-count", type=int, default=1)
+    return parser.parse_args()
+
+
+def main():
+    configure_tensorflow()
+    args = parse_args()
+
+    if args.format_data:
         format_training_data()
-    if "--train" in sys.argv:
-        train()
-    if "--plot" in sys.argv:
+    if args.train:
+        train(args.batch_size, args.epochs, args.verbose, args.data_percentage)
+    if args.plot:
         plot()
-    if "--out" in sys.argv:
-        output()
+    if args.out:
+        output(args.file_count)
 
 
 if __name__ == "__main__":

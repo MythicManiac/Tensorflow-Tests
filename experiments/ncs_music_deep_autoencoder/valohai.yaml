@@ -3,9 +3,43 @@
 - step:
     name: train
     image: ufoym/deepo:all-py36
-    command: python run.py --train
+    command:
+        - nvidia-smi
+        - python run.py --train {parameters}
     inputs:
-        - name: data-training.npy
+        - name: data-training
           default: datum://0168d963-064f-9da0-4a3a-1342663c7d05
-        - name: data-validation.npy
-          default: datum://0168d963-064f-9da0-4a3a-1342663c7d05
+        - name: data-validation
+          default: datum://0168d965-f69e-1b0a-b970-81ae7c10fc15
+    parameters:
+        - name: epochs
+          type: integer
+          pass-as: --epochs {v}
+          default: 10
+        - name: batch-size
+          type: integer
+          pass-as: --batch-size {v}
+          default: 512
+        - name: verbose
+          type: integer
+          pass-as: --verbose {v}
+          default: 2
+        - name: data_percentage
+          type: float
+          pass-as: --data-percentage {v}
+          default: 1.0
+
+- step:
+    name: output
+    image: ufoym/deepo:all-py36
+    command:
+        - python run.py --out {parameters}
+    inputs:
+        - name: data-files
+          default: datum://0168d957-5efd-a9d6-d74f-fbccc0fba2ee
+        - name: weights
+    parameters:
+        - name: file_count
+          type: integer
+          pass-as: --file-count {v}
+          default: 1
