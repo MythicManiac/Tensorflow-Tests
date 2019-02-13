@@ -24,19 +24,19 @@ from common import (
 
 
 INPUT_COUNT = 16384
-VALIDATION_DATA_PATH = get_input_path("data-level1-validation.npy")
-TRAINING_DATA_PATH = get_input_path("data-level1-training.npy")
-FILES_DATA_PATH = get_input_path("data-files.npy")
+VALIDATION_DATA_NAME = "data-level1-validation.npy"
+TRAINING_DATA_NAME = "data-level1-training.npy"
+FILES_DATA_NAME = "data-files.npy"
 
 
 def get_files_data():
-    return np.load(file=FILES_DATA_PATH)
+    return np.load(file=get_input_path(FILES_DATA_NAME))
 
 
 def get_training_data():
     return (
-        np.load(file=TRAINING_DATA_PATH, allow_pickle=False),
-        np.load(file=VALIDATION_DATA_PATH, allow_pickle=False),
+        np.load(file=get_input_path(TRAINING_DATA_NAME), allow_pickle=False),
+        np.load(file=get_input_path(VALIDATION_DATA_NAME), allow_pickle=False),
     )
 
 
@@ -87,6 +87,7 @@ class Level1Model(BaseModel):
         self.model = model
 
         self.build_encoder()
+        self.build_decoder()
 
     def build_encoder(self):
         encoder = Sequential()
@@ -114,8 +115,40 @@ class Level1Model(BaseModel):
         encoder.summary()
         self.encoder = encoder
 
+    def build_decoder(self):
+        decoder = Sequential()
+        decoder.add(InputLayer(input_shape=(512, 128), name="in"))
+        decoder.add(self.model.get_layer("conv1d_6"))
+        decoder.add(self.model.get_layer("batch_normalization_6"))
+        decoder.add(self.model.get_layer("activation_6"))
+        decoder.add(self.model.get_layer("up_sampling1d_1"))
+        decoder.add(self.model.get_layer("conv1d_7"))
+        decoder.add(self.model.get_layer("batch_normalization_7"))
+        decoder.add(self.model.get_layer("activation_7"))
+        decoder.add(self.model.get_layer("up_sampling1d_2"))
+        decoder.add(self.model.get_layer("conv1d_8"))
+        decoder.add(self.model.get_layer("batch_normalization_8"))
+        decoder.add(self.model.get_layer("activation_8"))
+        decoder.add(self.model.get_layer("up_sampling1d_3"))
+        decoder.add(self.model.get_layer("conv1d_9"))
+        decoder.add(self.model.get_layer("batch_normalization_9"))
+        decoder.add(self.model.get_layer("activation_9"))
+        decoder.add(self.model.get_layer("up_sampling1d_4"))
+        decoder.add(self.model.get_layer("conv1d_10"))
+        decoder.add(self.model.get_layer("batch_normalization_10"))
+        decoder.add(self.model.get_layer("activation_10"))
+        decoder.add(self.model.get_layer("up_sampling1d_5"))
+        decoder.add(self.model.get_layer("out"))
+        decoder.add(self.model.get_layer("batch_normalization_11"))
+        decoder.add(self.model.get_layer("activation_11"))
+        decoder.summary()
+        self.decoder = decoder
+
     def encode(self, inputs):
         return self.encoder.predict(inputs)
+
+    def decode(self, inputs):
+        return self.decoder.predict(inputs)
 
 
 def plot():
@@ -180,9 +213,9 @@ def format_data():
     )
     data.train_data = data.train_data.reshape(len(data.train_data), INPUT_COUNT, 1).astype(np.float16)
     data.test_data = data.test_data.reshape(len(data.test_data), INPUT_COUNT, 1).astype(np.float16)
-    np.save(file=TRAINING_DATA_PATH, arr=data.train_data, allow_pickle=False)
-    np.save(file=VALIDATION_DATA_PATH, arr=data.test_data, allow_pickle=False)
-    np.save(file=FILES_DATA_PATH, arr=data.files)
+    np.save(file=get_output_path(TRAINING_DATA_NAME), arr=data.train_data, allow_pickle=False)
+    np.save(file=get_output_path(VALIDATION_DATA_NAME), arr=data.test_data, allow_pickle=False)
+    np.save(file=get_output_path(FILES_DATA_NAME), arr=data.files)
 
 
 def main():

@@ -7,6 +7,30 @@ import tensorflow as tf
 
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from keras.backend.tensorflow_backend import set_session
+from keras.layers import (
+    Conv1D,
+    MaxPool1D,
+    UpSampling1D,
+    BatchNormalization,
+    Activation,
+    PReLU,
+)
+
+
+def add_convolution(sequential, filters):
+    sequential.add(Conv1D(filters, 3, padding="same", use_bias=False))
+    sequential.add(BatchNormalization())
+    sequential.add(Activation("relu"))
+
+
+def add_pool_convolution(sequential, filters):
+    add_convolution(sequential, filters)
+    sequential.add(MaxPool1D(2))
+
+
+def add_upsampling_convolution(sequential, filters):
+    add_convolution(sequential, filters)
+    sequential.add(UpSampling1D(2))
 
 
 def get_input_path(name):
@@ -81,17 +105,19 @@ def write_wav(path, data):
 
 class BaseModel(object):
 
-    def __init__(self):
+    def __init__(self, summary=True):
         name = self.__class__.__name__
         self.weights_load_location = get_input_path(f"weights-{name}.h5")
         self.weights_save_location = get_output_path(f"weights-{name}.h5")
         self.build()
         self.load()
+        if summary:
+            self.model.summary()
 
     def load(self):
         if os.path.exists(self.weights_load_location):
             self.model.load_weights(self.weights_load_location)
-            print("Loaded a model")
+            print(f"Loaded a model from {self.weights_load_location}")
 
     def train(self, in_x, in_y, val_x, val_y, epochs, batch_size, verbose, patience):
         model_checkpoint = ModelCheckpoint(
@@ -129,6 +155,12 @@ class BaseModel(object):
             callbacks=[model_checkpoint, reduce_lr, early_stoppping],
             verbose=verbose,
         )
+
+    def encode(self, inputs):
+        return self.encoder.predict(inputs)
+
+    def decode(self, inputs):
+        return self.decoder.predict(inputs)
 
     def predict_output(self, inputs):
         return self.model.predict(inputs)

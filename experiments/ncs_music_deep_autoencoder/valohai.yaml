@@ -11,6 +11,8 @@
           default: datum://0168d963-064f-9da0-4a3a-1342663c7d05
         - name: data-validation
           default: datum://0168d965-f69e-1b0a-b970-81ae7c10fc15
+        - name: weights
+          optional: true
     parameters:
         - name: epochs
           type: integer
