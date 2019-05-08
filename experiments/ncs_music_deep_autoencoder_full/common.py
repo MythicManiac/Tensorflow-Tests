@@ -5,9 +5,59 @@ import numpy as np
 
 import tensorflow as tf
 
-from keras import backend
-from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.backend.tensorflow_backend import set_session
+from keras.layers import (
+    Conv1D,
+    MaxPool1D,
+    UpSampling1D,
+    Conv2D,
+    MaxPooling2D,
+    UpSampling2D,
+    BatchNormalization,
+    PReLU,
+    Dense,
+)
+
+from lr_scheduler import SGDRScheduler
+
+
+def add_fully_connected(sequential, neurons):
+    sequential.add(Dense(neurons))
+    sequential.add(BatchNormalization())
+    sequential.add(PReLU())
+
+
+def add_convolution(sequential, filters):
+    sequential.add(Conv1D(filters, 3, padding="same", use_bias=False))
+    sequential.add(BatchNormalization())
+    sequential.add(PReLU())
+
+
+def add_pool_convolution(sequential, filters):
+    add_convolution(sequential, filters)
+    sequential.add(MaxPool1D(2))
+
+
+def add_upsampling_convolution(sequential, filters):
+    add_convolution(sequential, filters)
+    sequential.add(UpSampling1D(2))
+
+
+def add_convolution_2d(sequential, filters):
+    sequential.add(Conv2D(filters, (3, 3), padding="same", use_bias=False))
+    sequential.add(BatchNormalization())
+    sequential.add(PReLU())
+
+
+def add_pool_convolution_2d(sequential, filters):
+    add_convolution_2d(sequential, filters)
+    sequential.add(MaxPooling2D(pool_size=(2, 2)))
+
+
+def add_upsampling_convolution_2d(sequential, filters):
+    add_convolution_2d(sequential, filters)
+    sequential.add(UpSampling2D(size=(2, 2)))
 
 
 def get_input_path(name):
@@ -37,8 +87,6 @@ def get_output_path(name):
 
 
 def configure_tensorflow():
-    backend.set_floatx("float16")
-    backend.set_epsilon(1e-4)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     session = tf.Session(config=config)
@@ -84,18 +132,19 @@ def write_wav(path, data):
 
 class BaseModel(object):
 
-    def __init__(self):
-        print(f"Building model computational graph")
+    def __init__(self, summary=True):
         name = self.__class__.__name__
         self.weights_load_location = get_input_path(f"weights-{name}.h5")
         self.weights_save_location = get_output_path(f"weights-{name}.h5")
         self.build()
         self.load()
+        if summary:
+            self.model.summary()
 
     def load(self):
         if os.path.exists(self.weights_load_location):
             self.model.load_weights(self.weights_load_location)
-            print("Loaded a model")
+            print(f"Loaded a model from {self.weights_load_location}")
 
     def train(self, in_x, in_y, val_x, val_y, epochs, batch_size, verbose, patience):
         model_checkpoint = ModelCheckpoint(
@@ -107,16 +156,6 @@ class BaseModel(object):
             mode="auto",
             period=1
         )
-        reduce_lr = ReduceLROnPlateau(
-            monitor="val_loss",
-            factor=0.1,
-            patience=5,
-            verbose=0,
-            mode="auto",
-            min_delta=0.0001,
-            cooldown=0,
-            min_lr=0.0001
-        )
         early_stoppping = EarlyStopping(
             monitor="val_loss",
             min_delta=0,
@@ -124,42 +163,29 @@ class BaseModel(object):
             verbose=1,
             mode="auto"
         )
+        schedule = SGDRScheduler(
+            min_lr=1e-5,
+            max_lr=1e-2,
+            steps_per_epoch=np.ceil(epochs / batch_size),
+            lr_decay=0.9,
+            cycle_length=5,
+            mult_factor=1.5
+        )
         self.model.fit(
             in_x,
             in_y,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(val_x, val_y),
-            callbacks=[model_checkpoint, reduce_lr, early_stoppping],
+            callbacks=[model_checkpoint, schedule, early_stoppping],
             verbose=verbose,
         )
 
+    def encode(self, inputs):
+        return self.encoder.predict(inputs)
+
+    def decode(self, inputs):
+        return self.decoder.predict(inputs)
+
     def predict_output(self, inputs):
         return self.model.predict(inputs)
-
-
-def get_model_memory_usage(batch_size, model):
-    import numpy as np
-    from keras import backend as K
-
-    shapes_mem_count = 0
-    for l in model.layers:
-        single_layer_mem = 1
-        for s in l.output_shape:
-            if s is None:
-                continue
-            single_layer_mem *= s
-        shapes_mem_count += single_layer_mem
-
-    trainable_count = np.sum([K.count_params(p) for p in set(model.trainable_weights)])
-    non_trainable_count = np.sum([K.count_params(p) for p in set(model.non_trainable_weights)])
-
-    number_size = 4.0
-    if K.floatx() == "float16":
-        number_size = 2.0
-    if K.floatx() == "float64":
-        number_size = 8.0
-
-    total_memory = number_size*(batch_size*shapes_mem_count + trainable_count + non_trainable_count)
-    gbytes = np.round(total_memory / (1024.0 ** 3), 3)
-    return gbytes

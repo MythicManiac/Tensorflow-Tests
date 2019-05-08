@@ -5,11 +5,8 @@ import numpy as np
 
 from keras.layers import (
     InputLayer,
-    Conv1D,
-    MaxPool1D,
-    UpSampling1D,
-    BatchNormalization,
-    Activation,
+    Flatten,
+    Reshape,
 )
 from keras.models import Sequential
 
@@ -20,11 +17,15 @@ from common import (
     get_output_path,
     BaseModel,
     write_wav,
-    get_model_memory_usage,
+    add_pool_convolution,
+    add_upsampling_convolution,
+    add_fully_connected,
+    add_convolution,
 )
 
 
-INPUT_COUNT = 440992  # 44100 * 10 but made divisible by 2, 10 seconds of audio
+INPUT_COUNT = 16384  # 44100 * 10 but made divisible by 2, 10 seconds of audio
+BOTTLENECK_SIZE = 128
 # INPUT_COUNT = 44096
 # INPUT_COUNT = 16384
 VALIDATION_DATA_NAME = "data-validation.npy"
@@ -50,32 +51,21 @@ class Model(BaseModel):
         model = Sequential()
         model.add(InputLayer(input_shape=(INPUT_COUNT, 1), name="in"))
 
-        def add_convolution(sequential, filters):
-            sequential.add(Conv1D(filters, 3, padding="same", use_bias=False))
-            sequential.add(BatchNormalization())
-            sequential.add(Activation("relu"))
-
-        def add_pool_convolution(sequential, filters, pool_factor=2):
-            add_convolution(sequential, filters)
-            sequential.add(MaxPool1D(pool_factor))
-
-        def add_upsampling_convolution(sequential, filters, upsample_factor=2):
-            add_convolution(sequential, filters)
-            sequential.add(UpSampling1D(upsample_factor))
-
         encoder = Sequential(name="encoder")
         add_pool_convolution(encoder, 32)
-        add_pool_convolution(encoder, 32)
-        add_pool_convolution(encoder, 32)
-        add_pool_convolution(encoder, 32)
-        add_pool_convolution(encoder, 512, 1024)
+        add_pool_convolution(encoder, 64)
+        add_pool_convolution(encoder, 128)
+        add_pool_convolution(encoder, 256)
+        encoder.add(Flatten())
+        add_fully_connected(encoder, BOTTLENECK_SIZE)
         model.add(encoder)
 
         decoder = Sequential(name="decoder")
-        add_upsampling_convolution(decoder, 512, 1024)
-        add_upsampling_convolution(decoder, 32)
-        add_upsampling_convolution(decoder, 32)
-        add_upsampling_convolution(decoder, 32)
+        add_fully_connected(decoder, 1024 * 256)
+        decoder.add(Reshape((1024, 256)))
+        add_upsampling_convolution(decoder, 256)
+        add_upsampling_convolution(decoder, 128)
+        add_upsampling_convolution(decoder, 64)
         add_upsampling_convolution(decoder, 32)
         add_convolution(decoder, 1)
         model.add(decoder)
@@ -95,7 +85,7 @@ class Model(BaseModel):
 
     def build_decoder(self):
         decoder = Sequential()
-        decoder.add(InputLayer(input_shape=(1, 512), name="in"))
+        decoder.add(InputLayer(input_shape=(BOTTLENECK_SIZE,), name="in"))
         decoder.add(self.model.get_layer("decoder"))
         self.decoder = decoder
 
@@ -127,7 +117,6 @@ def plot():
 
 def train(batch_size, epochs, verbose, data_percentage, patience):
     model = Model()
-    print(f"Required memory by the model: {get_model_memory_usage(batch_size, model.model)} gb")
     print(f"Loading training data")
     training_data, validation_data = get_training_data()
     training_data = training_data[:int(len(training_data) * data_percentage)]

@@ -55,20 +55,20 @@ class Level2Model(BaseModel):
         model.add(InputLayer(input_shape=INPUT_SHAPE, name="in"))
 
         encoder = Sequential(name="encoder")
-        add_pool_convolution(encoder, 16)
-        add_pool_convolution(encoder, 32)
-        add_pool_convolution(encoder, 64)
-        add_pool_convolution(encoder, 128)
-        add_pool_convolution(encoder, 128)
+        add_pool_convolution(encoder, 16, activation="prelu")
+        add_pool_convolution(encoder, 32, activation="prelu")
+        add_pool_convolution(encoder, 64, activation="prelu")
+        add_pool_convolution(encoder, 128, activation="prelu")
+        add_pool_convolution(encoder, 128, activation="prelu")
         model.add(encoder)
 
         decoder = Sequential(name="decoder")
-        add_upsampling_convolution(decoder, 128)
-        add_upsampling_convolution(decoder, 128)
-        add_upsampling_convolution(decoder, 64)
-        add_upsampling_convolution(decoder, 32)
-        add_upsampling_convolution(decoder, 16)
-        add_convolution(decoder, INPUT_SHAPE[1])
+        add_upsampling_convolution(decoder, 128, activation="prelu")
+        add_upsampling_convolution(decoder, 128, activation="prelu")
+        add_upsampling_convolution(decoder, 64, activation="prelu")
+        add_upsampling_convolution(decoder, 32, activation="prelu")
+        add_upsampling_convolution(decoder, 16, activation="prelu")
+        add_convolution(decoder, INPUT_SHAPE[1])  # TODO: Add prelu
         model.add(decoder)
 
         model.compile(optimizer="adam", loss="mse", metrics=["acc"])
@@ -85,7 +85,7 @@ class Level2Model(BaseModel):
 
     def build_decoder(self):
         decoder = Sequential()
-        decoder.add(InputLayer(input_shape=(1, 128), name="in"))
+        decoder.add(InputLayer(input_shape=(32, 128), name="in"))
         decoder.add(self.model.get_layer("decoder"))
         self.decoder = decoder
 
@@ -143,7 +143,9 @@ def output(file_count):
     del files
 
     model = level1.Level1Model()
+    print(file.shape)
     file = model.encode(file)
+    print(file.shape)
     del model
     backend.clear_session()
 
@@ -153,7 +155,6 @@ def output(file_count):
     backend.clear_session()
 
     model = level1.Level1Model()
-    file = file.reshape(file.shape[0] * file.shape[1], 1, 16)
     file = model.decode(file)
     del model
     backend.clear_session()

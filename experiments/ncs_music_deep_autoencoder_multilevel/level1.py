@@ -47,7 +47,7 @@ class Level1Model(BaseModel):
         model.add(InputLayer(input_shape=(INPUT_COUNT, 1), name="in"))
 
         encoder = Sequential(name="encoder")
-        add_pool_convolution(encoder, 4)
+        add_pool_convolution(encoder, 4)  # TODO: Make prelu
         add_pool_convolution(encoder, 4)
         add_pool_convolution(encoder, 8)
         add_pool_convolution(encoder, 16)
@@ -75,7 +75,7 @@ class Level1Model(BaseModel):
 
     def build_decoder(self):
         decoder = Sequential()
-        decoder.add(InputLayer(input_shape=(1, 16), name="in"))
+        decoder.add(InputLayer(input_shape=(1024, 16), name="in"))
         decoder.add(self.model.get_layer("decoder"))
         self.decoder = decoder
 

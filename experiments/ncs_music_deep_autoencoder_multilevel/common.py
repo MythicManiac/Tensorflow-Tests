@@ -16,20 +16,25 @@ from keras.layers import (
     PReLU,
 )
 
+from lr_scheduler import SGDRScheduler
 
-def add_convolution(sequential, filters):
+
+def add_convolution(sequential, filters, activation="relu"):
     sequential.add(Conv1D(filters, 3, padding="same", use_bias=False))
     sequential.add(BatchNormalization())
-    sequential.add(Activation("relu"))
+    if activation == "prelu":
+        sequential.add(PReLU())
+    else:
+        sequential.add(Activation(activation))
 
 
-def add_pool_convolution(sequential, filters):
-    add_convolution(sequential, filters)
+def add_pool_convolution(sequential, filters, activation="relu"):
+    add_convolution(sequential, filters, activation=activation)
     sequential.add(MaxPool1D(2))
 
 
-def add_upsampling_convolution(sequential, filters):
-    add_convolution(sequential, filters)
+def add_upsampling_convolution(sequential, filters, activation="relu"):
+    add_convolution(sequential, filters, activation=activation)
     sequential.add(UpSampling1D(2))
 
 
@@ -129,16 +134,16 @@ class BaseModel(object):
             mode="auto",
             period=1
         )
-        reduce_lr = ReduceLROnPlateau(
-            monitor="val_loss",
-            factor=0.1,
-            patience=5,
-            verbose=0,
-            mode="auto",
-            min_delta=0.0001,
-            cooldown=0,
-            min_lr=0.0001
-        )
+        # reduce_lr = ReduceLROnPlateau(
+        #     monitor="val_loss",
+        #     factor=0.1,
+        #     patience=5,
+        #     verbose=0,
+        #     mode="auto",
+        #     min_delta=0.0001,
+        #     cooldown=0,
+        #     min_lr=0.0001
+        # )
         early_stoppping = EarlyStopping(
             monitor="val_loss",
             min_delta=0,
@@ -146,13 +151,21 @@ class BaseModel(object):
             verbose=1,
             mode="auto"
         )
+        schedule = SGDRScheduler(
+            min_lr=1e-5,
+            max_lr=1e-2,
+            steps_per_epoch=np.ceil(epochs / batch_size),
+            lr_decay=0.9,
+            cycle_length=5,
+            mult_factor=1.5
+        )
         self.model.fit(
             in_x,
             in_y,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(val_x, val_y),
-            callbacks=[model_checkpoint, reduce_lr, early_stoppping],
+            callbacks=[model_checkpoint, schedule, early_stoppping],
             verbose=verbose,
         )
 
