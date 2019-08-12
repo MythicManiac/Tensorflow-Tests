@@ -1,0 +1,4 @@
+output/*
+generated/*
+*.npy
+*.h5

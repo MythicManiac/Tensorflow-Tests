@@ -106,6 +106,11 @@ def parse_args():
 
     parser.add_argument("--plot", action="store_true")
 
+    parser.add_argument("--generate", action="store_true")
+    parser.add_argument("--cross", action="store_true")
+    parser.add_argument("--gui", action="store_true")
+    parser.add_argument("--encode", action="store_true")
+
     parser.add_argument("--out", action="store_true")
     parser.add_argument("--file-count", type=int, default=1)
     return parser.parse_args()
