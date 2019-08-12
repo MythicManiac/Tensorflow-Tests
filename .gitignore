@@ -1,6 +1,7 @@
 # Custom
 **events.out.tfevents.**
 experiments/models/*
+experiments/data/league/league_frames/*
 output*.wav
 
 # Byte-compiled / optimized / DLL files
