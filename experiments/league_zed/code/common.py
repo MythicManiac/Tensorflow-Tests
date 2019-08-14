@@ -18,7 +18,7 @@ from keras.layers import (
     Dense,
 )
 
-from lr_scheduler import SGDRScheduler
+from .lr_scheduler import SGDRScheduler
 
 
 def add_fully_connected(sequential, neurons):

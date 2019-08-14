@@ -15,7 +15,7 @@ from keras.layers import (
 )
 from keras.models import Sequential
 
-from common import (
+from .common import (
     configure_tensorflow,
     parse_args,
     get_input_path,
@@ -28,7 +28,7 @@ from common import (
 
 INPUT_SHAPE = (432, 768, 3)
 BOTTLENECK_SIZE = 64
-OUTPUT_COUNT = 19
+OUTPUT_COUNT = 23
 TRAINING_DATA_IN_NAME = "data-training-in.npy"
 TRAINING_DATA_OUT_NAME = "data-training-out.npy"
 VALIDATION_DATA_IN_NAME = "data-validation-in.npy"
@@ -129,18 +129,18 @@ def get_action_name(prediction):
         "KeyDown.D2",
         "KeyDown.D3",
         "KeyDown.D4",
-        "KeyDown.D1.Selfcast",
-        "KeyDown.D2.Selfcast",
-        "KeyDown.D3.Selfcast",
-        "KeyDown.D4.Selfcast",
+        "KeyDown.D1.CtrlCast",
+        "KeyDown.D2.CtrlCast",
+        "KeyDown.D3.CtrlCast",
+        "KeyDown.D4.CtrlCast",
         "KeyDown.Q",
         "KeyDown.W",
         "KeyDown.E",
         "KeyDown.R",
-        "KeyDown.Q.Selfcast",
-        "KeyDown.W.Selfcast",
-        "KeyDown.E.Selfcast",
-        "KeyDown.R.Selfcast",
+        "KeyDown.Q.CtrlCast",
+        "KeyDown.W.CtrlCast",
+        "KeyDown.E.CtrlCast",
+        "KeyDown.R.CtrlCast",
     )
     return VALID_ACTIONS[np.argmax(prediction[2:])]
 
@@ -164,8 +164,8 @@ def output(file_count, batch_size):
     if not os.path.exists("output"):
         os.makedirs("output")
 
-    # files = get_validation_input()
-    files = get_training_input()
+    files = get_validation_input()
+    # files = get_training_input()
     files = files[:file_count]
 
     model = Model()
@@ -219,7 +219,3 @@ def main():
         plot(args.batch_size)
     if args.out:
         output(args.file_count, args.batch_size)
-
-
-if __name__ == "__main__":
-    main()
