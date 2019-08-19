@@ -146,7 +146,7 @@ class BaseModel(object):
             self.model.load_weights(self.weights_load_location)
             print(f"Loaded a model from {self.weights_load_location}")
 
-    def train(self, in_x, in_y, val_x, val_y, epochs, batch_size, verbose, patience):
+    def _get_callbacks(self, patience, epochs, batch_size):
         model_checkpoint = ModelCheckpoint(
             self.weights_save_location,
             monitor="val_loss",
@@ -171,14 +171,24 @@ class BaseModel(object):
             cycle_length=5,
             mult_factor=1.5
         )
+        return [model_checkpoint, schedule, early_stoppping]
+
+    def train(self, in_x, in_y, val_x, val_y, epochs, batch_size, verbose, patience):
         self.model.fit(
             in_x,
             in_y,
             epochs=epochs,
             batch_size=batch_size,
             validation_data=(val_x, val_y),
-            callbacks=[model_checkpoint, schedule, early_stoppping],
+            callbacks=self._get_callbacks(patience, epochs, batch_size),
             verbose=verbose,
+        )
+
+    def fit_generator(self, patience, epochs, batch_size, **kwargs):
+        return self.model.fit_generator(
+            callbacks=self._get_callbacks(patience, epochs, batch_size),
+            epochs=epochs,
+            **kwargs
         )
 
     def predict_output(self, inputs, batch_size=10):
